@@ -192,8 +192,6 @@ export default function ExpedienteDetalle() {
 
   const handleEstadoChange = async (nuevoEstado: string) => {
     try {
-      const estadoAnterior = expediente?.estado;
-
       const { error: updateError } = await supabase
         .from("expedientes")
         .update({ estado: nuevoEstado })
@@ -201,16 +199,15 @@ export default function ExpedienteDetalle() {
 
       if (updateError) throw updateError;
 
-      const { data: userData } = await supabase.auth.getUser();
-
-      const { error: historialError } = await supabase
-        .from("historial_estados")
-        .insert({
-          expediente_id: id,
-          estado_anterior: estadoAnterior,
-          estado_nuevo: nuevoEstado,
-          usuario_id: userData?.user?.id || null,
-        });
+      toast.success("Estado actualizado correctamente");
+      setShowEstadoConfirm(null);
+      fetchExpediente();
+      fetchHistorial();
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al actualizar el estado");
+    }
+  };
 
       if (historialError) throw historialError;
 
