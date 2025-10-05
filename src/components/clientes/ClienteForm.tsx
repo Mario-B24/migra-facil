@@ -34,11 +34,11 @@ const clienteSchema = z.object({
   nie_pasaporte: z.string().trim().min(1, "NIE/Pasaporte es obligatorio").max(50),
   fecha_vencimiento_nie: z.date().optional().nullable(),
   fecha_nacimiento: z.date().optional().nullable(),
-  calle: z.string().trim().max(255).optional(),
-  numero: z.string().trim().max(20).optional(),
-  piso: z.string().trim().max(20).optional(),
-  puerta: z.string().trim().max(20).optional(),
-  observaciones: z.string().trim().max(5000).optional(),
+  calle: z.string().trim().max(255).optional().or(z.literal("")),
+    numero: z.string().trim().max(20).optional().or(z.literal("")),
+    piso: z.string().trim().max(20).optional().or(z.literal("")),
+    puerta: z.string().trim().max(20).optional().or(z.literal("")),
+    observaciones: z.string().trim().max(5000).optional().or(z.literal("")),
 });
 
 type ClienteFormData = z.infer<typeof clienteSchema>;

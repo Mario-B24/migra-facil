@@ -89,18 +89,37 @@ export default function Clientes() {
   };
 
   const handleCreate = async (data: any) => {
-    const { error } = await supabase.from("clients").insert({
-      ...data,
-      fecha_vencimiento_nie: data.fecha_vencimiento_nie ? format(data.fecha_vencimiento_nie, "yyyy-MM-dd") : null,
-      fecha_nacimiento: data.fecha_nacimiento ? format(data.fecha_nacimiento, "yyyy-MM-dd") : null,
-    });
+    try {
+      // Preparar los datos para la inserción
+      const clientData = {
+        nombre: data.nombre,
+        apellidos: data.apellidos,
+        email: data.email || null,
+        telefono: data.telefono || null,
+        nacionalidad: data.nacionalidad || null,
+        nie_pasaporte: data.nie_pasaporte,
+        fecha_vencimiento_nie: data.fecha_vencimiento_nie ? format(data.fecha_vencimiento_nie, "yyyy-MM-dd") : null,
+        fecha_nacimiento: data.fecha_nacimiento ? format(data.fecha_nacimiento, "yyyy-MM-dd") : null,
+        calle: data.calle || null,
+        numero: data.numero || null,
+        piso: data.piso || null,
+        puerta: data.puerta || null,
+        observaciones: data.observaciones || null,
+      };
 
-    if (error) {
-      toast.error("Error al crear cliente");
-    } else {
-      toast.success("Cliente creado correctamente");
-      setShowCreateDialog(false);
-      fetchClientes();
+      const { error } = await supabase.from("clients").insert(clientData);
+
+      if (error) {
+        console.error("Error al crear cliente:", error);
+        toast.error(`Error al crear cliente: ${error.message}`);
+      } else {
+        toast.success("Cliente creado correctamente");
+        setShowCreateDialog(false);
+        fetchClientes();
+      }
+    } catch (err) {
+      console.error("Error inesperado:", err);
+      toast.error("Error inesperado al crear cliente");
     }
   };
 
