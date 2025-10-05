@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
 import ClienteDetalle from "./components/clientes/ClienteDetalle";
 import Expedientes from "./pages/Expedientes";
+import ExpedienteDetalle from "./pages/ExpedienteDetalle";
 import TiposTramite from "./pages/TiposTramite";
 import DocumentosRequeridos from "./pages/DocumentosRequeridos";
 import Pagos from "./pages/Pagos";
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
           <Route path="/clientes/:id" element={<ProtectedRoute><ClienteDetalle /></ProtectedRoute>} />
           <Route path="/expedientes" element={<ProtectedRoute><Expedientes /></ProtectedRoute>} />
+          <Route path="/expedientes/:id" element={<ProtectedRoute><ExpedienteDetalle /></ProtectedRoute>} />
           <Route path="/tipos-tramite" element={<ProtectedRoute><TiposTramite /></ProtectedRoute>} />
           <Route path="/documentos-requeridos" element={<ProtectedRoute><DocumentosRequeridos /></ProtectedRoute>} />
           <Route path="/pagos" element={<ProtectedRoute><Pagos /></ProtectedRoute>} />
