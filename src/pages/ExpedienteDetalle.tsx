@@ -209,18 +209,6 @@ export default function ExpedienteDetalle() {
     }
   };
 
-      if (historialError) throw historialError;
-
-      toast.success("Estado actualizado correctamente");
-      setShowEstadoConfirm(null);
-      fetchExpediente();
-      fetchHistorial();
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Error al actualizar el estado");
-    }
-  };
-
   if (loading) {
     return (
       <div className="p-8">
