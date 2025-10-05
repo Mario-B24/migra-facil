@@ -211,6 +211,48 @@ export type Database = {
           },
         ]
       }
+      gestoria_config: {
+        Row: {
+          ciudad: string | null
+          codigo_postal: string | null
+          created_at: string | null
+          direccion: string | null
+          email: string | null
+          formato_numeracion: string | null
+          id: string
+          logo_url: string | null
+          nombre_gestoria: string
+          telefono: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ciudad?: string | null
+          codigo_postal?: string | null
+          created_at?: string | null
+          direccion?: string | null
+          email?: string | null
+          formato_numeracion?: string | null
+          id?: string
+          logo_url?: string | null
+          nombre_gestoria: string
+          telefono?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ciudad?: string | null
+          codigo_postal?: string | null
+          created_at?: string | null
+          direccion?: string | null
+          email?: string | null
+          formato_numeracion?: string | null
+          id?: string
+          logo_url?: string | null
+          nombre_gestoria?: string
+          telefono?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       historial_estados: {
         Row: {
           estado_anterior: string | null
@@ -297,6 +339,33 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          nombre: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          id: string
+          nombre?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nombre?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       tipos_tramite: {
         Row: {
           active: boolean | null
@@ -324,15 +393,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "operador"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -459,6 +555,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "operador"],
+    },
   },
 } as const
