@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
+import ClienteDetalle from "./components/clientes/ClienteDetalle";
 import Expedientes from "./pages/Expedientes";
 import Pagos from "./pages/Pagos";
 import Configuracion from "./pages/Configuracion";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
+          <Route path="/clientes/:id" element={<ProtectedRoute><ClienteDetalle /></ProtectedRoute>} />
           <Route path="/expedientes" element={<ProtectedRoute><Expedientes /></ProtectedRoute>} />
           <Route path="/pagos" element={<ProtectedRoute><Pagos /></ProtectedRoute>} />
           <Route path="/configuracion" element={<ProtectedRoute><Configuracion /></ProtectedRoute>} />
