@@ -1,13 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Users,
-  FolderOpen,
-  FileText,
-  ClipboardList,
-  CreditCard,
-  Settings,
-} from "lucide-react";
+import { LayoutDashboard, Users, FolderOpen, FileText, ClipboardList, CreditCard, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -26,7 +18,6 @@ const items = [
   { title: "Expedientes", url: "/expedientes", icon: FolderOpen },
   { title: "Tipos de Trámite", url: "/tipos-tramite", icon: FileText },
   { title: "Documentos Requeridos", url: "/documentos-requeridos", icon: ClipboardList },
-  { title: "Pagos", url: "/pagos", icon: CreditCard },
   { title: "Configuración", url: "/configuracion", icon: Settings },
 ];
 
