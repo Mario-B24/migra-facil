@@ -8,22 +8,22 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Trash2 } from "lucide-react";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { ExpedienteForm } from "@/components/expedientes/ExpedienteForm";
+
+const ITEMS_PER_PAGE = 20;
 
 const estadoColors: Record<string, string> = {
   pendiente_documentos: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
@@ -51,15 +51,17 @@ export default function Expedientes() {
   const [tiposTramite, setTiposTramite] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterEstado, setFilterEstado] = useState<string>("all");
   const [filterTipoTramite, setFilterTipoTramite] = useState<string>("all");
-  const [expedienteToDelete, setExpedienteToDelete] = useState<any | null>(null);
 
   useEffect(() => {
     fetchTiposTramite();
     fetchExpedientes();
-  }, [searchTerm, filterEstado, filterTipoTramite]);
+  }, [currentPage, searchTerm, filterEstado, filterTipoTramite]);
 
   const fetchTiposTramite = async () => {
     try {
@@ -76,7 +78,8 @@ export default function Expedientes() {
     try {
       setLoading(true);
 
-      let query = supabase.from("expedientes").select(`
+      let query = supabase.from("expedientes").select(
+        `
             *,
             clients:cliente_id (
               nombre,
@@ -85,7 +88,9 @@ export default function Expedientes() {
             tipos_tramite:tipo_tramite_id (
               nombre
             )
-          `);
+          `,
+        { count: "exact" },
+      );
 
       if (searchTerm) {
         query = query.or(
@@ -102,11 +107,15 @@ export default function Expedientes() {
         query = query.eq("tipo_tramite_id", filterTipoTramite);
       }
 
-      const { data, error } = await query.order("fecha_inicio", { ascending: false });
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      const { data, error, count } = await query.order("fecha_inicio", { ascending: false }).range(from, to);
 
       if (error) throw error;
 
       setExpedientes(data || []);
+      setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar los expedientes");
@@ -115,24 +124,8 @@ export default function Expedientes() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!expedienteToDelete) return;
-
-    try {
-      const { error } = await supabase.from("expedientes").delete().eq("id", expedienteToDelete.id);
-
-      if (error) {
-        console.error("Error al eliminar expediente:", error);
-        toast.error(`Error al eliminar expediente: ${error.message}`);
-      } else {
-        toast.success("Expediente eliminado correctamente");
-        setExpedienteToDelete(null);
-        fetchExpedientes();
-      }
-    } catch (err) {
-      console.error("Error inesperado:", err);
-      toast.error("Error inesperado al eliminar expediente");
-    }
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   if (loading && expedientes.length === 0) {
@@ -164,7 +157,10 @@ export default function Expedientes() {
                 <Input
                   placeholder="Buscar por número o cliente..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="pl-10"
                 />
               </div>
@@ -176,7 +172,13 @@ export default function Expedientes() {
 
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
-                <Select value={filterEstado} onValueChange={(value) => setFilterEstado(value)}>
+                <Select
+                  value={filterEstado}
+                  onValueChange={(value) => {
+                    setFilterEstado(value);
+                    setCurrentPage(1);
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Filtrar por estado" />
                   </SelectTrigger>
@@ -193,7 +195,13 @@ export default function Expedientes() {
                 </Select>
               </div>
               <div className="flex-1">
-                <Select value={filterTipoTramite} onValueChange={(value) => setFilterTipoTramite(value)}>
+                <Select
+                  value={filterTipoTramite}
+                  onValueChange={(value) => {
+                    setFilterTipoTramite(value);
+                    setCurrentPage(1);
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Filtrar por tipo de trámite" />
                   </SelectTrigger>
@@ -219,64 +227,77 @@ export default function Expedientes() {
                 <TableHead>Estado</TableHead>
                 <TableHead>Fecha Inicio</TableHead>
                 <TableHead>Precio</TableHead>
-                <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {expedientes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No se encontraron expedientes
                   </TableCell>
                 </TableRow>
               ) : (
                 expedientes.map((expediente) => (
-                  <TableRow key={expediente.id}>
-                    <TableCell
-                      className="font-medium cursor-pointer"
-                      onClick={() => navigate(`/expedientes/${expediente.id}`)}
-                    >
-                      {expediente.numero_expediente}
-                    </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
+                  <TableRow
+                    key={expediente.id}
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/expedientes/${expediente.id}`)}
+                  >
+                    <TableCell className="font-medium">{expediente.numero_expediente}</TableCell>
+                    <TableCell>
                       {expediente.clients ? `${expediente.clients.apellidos}, ${expediente.clients.nombre}` : "N/A"}
                     </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
-                      {expediente.tipos_tramite?.nombre || "N/A"}
-                    </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
+                    <TableCell>{expediente.tipos_tramite?.nombre || "N/A"}</TableCell>
+                    <TableCell>
                       <Badge variant="outline" className={estadoColors[expediente.estado] || ""}>
                         {estadoLabels[expediente.estado] || expediente.estado}
                       </Badge>
                     </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
+                    <TableCell>
                       {expediente.fecha_inicio
                         ? format(new Date(expediente.fecha_inicio), "dd/MM/yyyy", {
                             locale: es,
                           })
                         : "N/A"}
                     </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
-                      {expediente.precio_acordado}€
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpedienteToDelete(expediente);
-                        }}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+                    <TableCell>{expediente.precio_acordado}€</TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
+
+          {totalPages > 1 && (
+            <div className="mt-4">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => handlePageChange(page)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </Card>
 
         <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
@@ -294,24 +315,6 @@ export default function Expedientes() {
             />
           </DialogContent>
         </Dialog>
-
-        <AlertDialog open={!!expedienteToDelete} onOpenChange={() => setExpedienteToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción eliminará permanentemente el expediente{" "}
-                <strong>{expedienteToDelete?.numero_expediente}</strong>. Esta acción no se puede deshacer.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </MainLayout>
   );
