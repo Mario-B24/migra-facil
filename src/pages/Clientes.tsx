@@ -4,13 +4,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Pagination,
   PaginationContent,
@@ -19,7 +13,17 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
@@ -40,6 +44,7 @@ export default function Clientes() {
   const [nacionalidades, setNacionalidades] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [clienteToDelete, setClienteToDelete] = useState<Cliente | null>(null);
 
   useEffect(() => {
     fetchClientes();
@@ -51,16 +56,11 @@ export default function Clientes() {
 
   const fetchClientes = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("clients")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("clients").select("*").order("created_at", { ascending: false });
 
     if (!error && data) {
       setClientes(data);
-      const uniqueNacionalidades = Array.from(
-        new Set(data.map((c) => c.nacionalidad).filter(Boolean))
-      ) as string[];
+      const uniqueNacionalidades = Array.from(new Set(data.map((c) => c.nacionalidad).filter(Boolean))) as string[];
       setNacionalidades(uniqueNacionalidades.sort());
     }
     setLoading(false);
@@ -76,7 +76,7 @@ export default function Clientes() {
           c.nombre.toLowerCase().includes(search) ||
           c.apellidos.toLowerCase().includes(search) ||
           c.email?.toLowerCase().includes(search) ||
-          c.nie_pasaporte.toLowerCase().includes(search)
+          c.nie_pasaporte.toLowerCase().includes(search),
       );
     }
 
@@ -120,6 +120,26 @@ export default function Clientes() {
     } catch (err) {
       console.error("Error inesperado:", err);
       toast.error("Error inesperado al crear cliente");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!clienteToDelete) return;
+
+    try {
+      const { error } = await supabase.from("clients").delete().eq("id", clienteToDelete.id);
+
+      if (error) {
+        console.error("Error al eliminar cliente:", error);
+        toast.error(`Error al eliminar cliente: ${error.message}`);
+      } else {
+        toast.success("Cliente eliminado correctamente");
+        setClienteToDelete(null);
+        fetchClientes();
+      }
+    } catch (err) {
+      console.error("Error inesperado:", err);
+      toast.error("Error inesperado al eliminar cliente");
     }
   };
 
@@ -187,34 +207,61 @@ export default function Clientes() {
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
                         Nombre Completo
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Email
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Teléfono
-                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Teléfono</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
                         NIE/Pasaporte
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                        Nacionalidad
-                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Nacionalidad</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {currentClientes.map((cliente) => (
-                      <tr
-                        key={cliente.id}
-                        className="hover:bg-muted/50 cursor-pointer"
-                        onClick={() => navigate(`/clientes/${cliente.id}`)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
+                      <tr key={cliente.id} className="hover:bg-muted/50">
+                        <td
+                          className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                          onClick={() => navigate(`/clientes/${cliente.id}`)}
+                        >
                           {cliente.nombre} {cliente.apellidos}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cliente.email || "-"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cliente.telefono || "-"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cliente.nie_pasaporte}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{cliente.nacionalidad || "-"}</td>
+                        <td
+                          className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                          onClick={() => navigate(`/clientes/${cliente.id}`)}
+                        >
+                          {cliente.email || "-"}
+                        </td>
+                        <td
+                          className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                          onClick={() => navigate(`/clientes/${cliente.id}`)}
+                        >
+                          {cliente.telefono || "-"}
+                        </td>
+                        <td
+                          className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                          onClick={() => navigate(`/clientes/${cliente.id}`)}
+                        >
+                          {cliente.nie_pasaporte}
+                        </td>
+                        <td
+                          className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                          onClick={() => navigate(`/clientes/${cliente.id}`)}
+                        >
+                          {cliente.nacionalidad || "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setClienteToDelete(cliente);
+                            }}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -277,6 +324,27 @@ export default function Clientes() {
           <ClienteForm onSubmit={handleCreate} onCancel={() => setShowCreateDialog(false)} />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!clienteToDelete} onOpenChange={() => setClienteToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente al cliente{" "}
+              <strong>
+                {clienteToDelete?.nombre} {clienteToDelete?.apellidos}
+              </strong>
+              . Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }
