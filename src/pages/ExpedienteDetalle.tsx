@@ -1,39 +1,14 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ArrowLeft, Edit, FileText, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ExpedienteForm } from "@/components/expedientes/ExpedienteForm";
-
-const ITEMS_PER_PAGE = 20;
 
 const estadoColors: Record<string, string> = {
   pendiente_documentos: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20",
@@ -55,115 +30,68 @@ const estadoLabels: Record<string, string> = {
   archivado: "Archivado",
 };
 
-export default function Expedientes() {
+export default function ExpedienteDetalle() {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [expedientes, setExpedientes] = useState<any[]>([]);
-  const [tiposTramite, setTiposTramite] = useState<any[]>([]);
+  const [expediente, setExpediente] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showNewDialog, setShowNewDialog] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState<string>("all");
-  const [filterTipoTramite, setFilterTipoTramite] = useState<string>("all");
-  const [expedienteToDelete, setExpedienteToDelete] = useState<any | null>(null);
 
   useEffect(() => {
-    fetchTiposTramite();
-    fetchExpedientes();
-  }, [currentPage, searchTerm, filterEstado, filterTipoTramite]);
-
-  const fetchTiposTramite = async () => {
-    try {
-      const { data, error } = await supabase.from("tipos_tramite").select("id, nombre").order("nombre");
-
-      if (error) throw error;
-      setTiposTramite(data || []);
-    } catch (error) {
-      console.error("Error:", error);
+    if (id) {
+      fetchExpediente();
     }
-  };
+  }, [id]);
 
-  const fetchExpedientes = async () => {
+  const fetchExpediente = async () => {
     try {
       setLoading(true);
-
-      let query = supabase.from("expedientes").select(
-        `
-            *,
-            clients:cliente_id (
-              nombre,
-              apellidos
-            ),
-            tipos_tramite:tipo_tramite_id (
-              nombre
-            )
-          `,
-        { count: "exact" },
-      );
-
-      if (searchTerm) {
-        query = query.or(
-          `numero_expediente.ilike.%${searchTerm}%,clients.nombre.ilike.%${searchTerm}%,clients.apellidos.ilike.%$
-  {searchTerm}%`,
-        );
-      }
-
-      if (filterEstado !== "all") {
-        query = query.eq("estado", filterEstado);
-      }
-
-      if (filterTipoTramite !== "all") {
-        query = query.eq("tipo_tramite_id", filterTipoTramite);
-      }
-
-      const from = (currentPage - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      const { data, error, count } = await query.order("fecha_inicio", { ascending: false }).range(from, to);
+      const { data, error } = await supabase
+        .from("expedientes")
+        .select(`
+          *,
+          clients:cliente_id (
+            nombre,
+            apellidos,
+            email,
+            telefono
+          ),
+          tipos_tramite:tipo_tramite_id (
+            nombre,
+            descripcion
+          )
+        `)
+        .eq("id", id)
+        .single();
 
       if (error) throw error;
-
-      setExpedientes(data || []);
-      setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
+      setExpediente(data);
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Error al cargar los expedientes");
+      toast.error("Error al cargar el expediente");
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handleDelete = async () => {
-    if (!expedienteToDelete) return;
-
-    try {
-      const { error } = await supabase.from("expedientes").delete().eq("id", expedienteToDelete.id);
-
-      if (error) {
-        console.error("Error al eliminar expediente:", error);
-        toast.error(`Error al eliminar expediente: ${error.message}`);
-      } else {
-        toast.success("Expediente eliminado correctamente");
-        setExpedienteToDelete(null);
-        fetchExpedientes();
-      }
-    } catch (err) {
-      console.error("Error inesperado:", err);
-      toast.error("Error inesperado al eliminar expediente");
-    }
-  };
-
-  if (loading && expedientes.length === 0) {
+  if (loading) {
     return (
       <MainLayout>
         <div className="p-8">
-          <p>Cargando expedientes...</p>
+          <p>Cargando expediente...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!expediente) {
+    return (
+      <MainLayout>
+        <div className="p-8">
+          <p>Expediente no encontrado</p>
+          <Button onClick={() => navigate("/expedientes")} className="mt-4">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver a Expedientes
+          </Button>
         </div>
       </MainLayout>
     );
@@ -172,217 +100,111 @@ export default function Expedientes() {
   return (
     <MainLayout>
       <div className="p-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Expedientes</h1>
-          <p className="text-muted-foreground">Gestión de expedientes y trámites</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <Button variant="ghost" onClick={() => navigate("/expedientes")} className="mb-2">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver a Expedientes
+            </Button>
+            <h1 className="text-3xl font-bold">Expediente {expediente.numero_expediente}</h1>
+            <p className="text-muted-foreground">Detalles del expediente</p>
+          </div>
+          <Badge variant="outline" className={estadoColors[expediente.estado] || ""}>
+            {estadoLabels[expediente.estado] || expediente.estado}
+          </Badge>
         </div>
 
-        <Card className="p-6">
-          <div className="flex flex-col gap-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <div className="relative flex-1 w-full sm:max-w-sm">
-                <Search
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4
-  text-muted-foreground"
-                />
-                <Input
-                  placeholder="Buscar por número o cliente..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="pl-10"
-                />
-              </div>
-              <Button onClick={() => setShowNewDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nuevo Expediente
+        <div className="grid gap-6">
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Información del Expediente
+              </h2>
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4 mr-2" />
+                Editar
               </Button>
             </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <Select
-                  value={filterEstado}
-                  onValueChange={(value) => {
-                    setFilterEstado(value);
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los estados</SelectItem>
-                    <SelectItem value="pendiente_documentos">Pendiente Documentos</SelectItem>
-                    <SelectItem value="documentos_completos">Documentos Completos</SelectItem>
-                    <SelectItem value="presentado">Presentado</SelectItem>
-                    <SelectItem value="en_tramite">En Trámite</SelectItem>
-                    <SelectItem value="aprobado">Aprobado</SelectItem>
-                    <SelectItem value="denegado">Denegado</SelectItem>
-                    <SelectItem value="archivado">Archivado</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Número de Expediente</p>
+                <p className="text-base">{expediente.numero_expediente}</p>
               </div>
-              <div className="flex-1">
-                <Select
-                  value={filterTipoTramite}
-                  onValueChange={(value) => {
-                    setFilterTipoTramite(value);
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filtrar por tipo de trámite" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los tipos</SelectItem>
-                    {tiposTramite.map((tipo) => (
-                      <SelectItem key={tipo.id} value={tipo.id}>
-                        {tipo.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Tipo de Trámite</p>
+                <p className="text-base">{expediente.tipos_tramite?.nombre || "N/A"}</p>
               </div>
-            </div>
-          </div>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nº Expediente</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Tipo de Trámite</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Fecha Inicio</TableHead>
-                <TableHead>Precio</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {expedientes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    No se encontraron expedientes
-                  </TableCell>
-                </TableRow>
-              ) : (
-                expedientes.map((expediente) => (
-                  <TableRow key={expediente.id}>
-                    <TableCell
-                      className="font-medium cursor-pointer"
-                      onClick={() => navigate(`/expedientes/${expediente.id}`)}
-                    >
-                      {expediente.numero_expediente}
-                    </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
-                      {expediente.clients ? `${expediente.clients.apellidos}, ${expediente.clients.nombre}` : "N/A"}
-                    </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
-                      {expediente.tipos_tramite?.nombre || "N/A"}
-                    </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
-                      <Badge variant="outline" className={estadoColors[expediente.estado] || ""}>
-                        {estadoLabels[expediente.estado] || expediente.estado}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
-                      {expediente.fecha_inicio
-                        ? format(new Date(expediente.fecha_inicio), "dd/MM/yyyy", {
-                            locale: es,
-                          })
-                        : "N/A"}
-                    </TableCell>
-                    <TableCell className="cursor-pointer" onClick={() => navigate(`/expedientes/${expediente.id}`)}>
-                      {expediente.precio_acordado}€
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpedienteToDelete(expediente);
-                        }}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Fecha de Inicio</p>
+                <p className="text-base">
+                  {expediente.fecha_inicio
+                    ? format(new Date(expediente.fecha_inicio), "dd/MM/yyyy", { locale: es })
+                    : "N/A"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Fecha Estimada</p>
+                <p className="text-base">
+                  {expediente.fecha_estimada
+                    ? format(new Date(expediente.fecha_estimada), "dd/MM/yyyy", { locale: es })
+                    : "N/A"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Precio Acordado</p>
+                <p className="text-base font-semibold">{expediente.precio_acordado}€</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Estado</p>
+                <Badge variant="outline" className={estadoColors[expediente.estado] || ""}>
+                  {estadoLabels[expediente.estado] || expediente.estado}
+                </Badge>
+              </div>
+              {expediente.notas && (
+                <div className="col-span-full">
+                  <p className="text-sm font-medium text-muted-foreground">Notas</p>
+                  <p className="text-base">{expediente.notas}</p>
+                </div>
               )}
-            </TableBody>
-          </Table>
-
-          {totalPages > 1 && (
-            <div className="mt-4">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                    />
-                  </PaginationItem>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <PaginationItem key={page}>
-                      <PaginationLink
-                        onClick={() => handlePageChange(page)}
-                        isActive={currentPage === page}
-                        className="cursor-pointer"
-                      >
-                        {page}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
             </div>
-          )}
-        </Card>
+          </Card>
 
-        <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Nuevo Expediente</DialogTitle>
-              <DialogDescription>Complete los datos para crear un nuevo expediente</DialogDescription>
-            </DialogHeader>
-            <ExpedienteForm
-              onSuccess={() => {
-                setShowNewDialog(false);
-                fetchExpedientes();
-              }}
-              onCancel={() => setShowNewDialog(false)}
-            />
-          </DialogContent>
-        </Dialog>
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Información del Cliente</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Nombre</p>
+                <p className="text-base">
+                  {expediente.clients
+                    ? `${expediente.clients.nombre} ${expediente.clients.apellidos}`
+                    : "N/A"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Email</p>
+                <p className="text-base">{expediente.clients?.email || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Teléfono</p>
+                <p className="text-base">{expediente.clients?.telefono || "N/A"}</p>
+              </div>
+            </div>
+          </Card>
 
-        <AlertDialog open={!!expedienteToDelete} onOpenChange={() => setExpedienteToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción eliminará permanentemente el expediente{" "}
-                <strong>{expedienteToDelete?.numero_expediente}</strong>. Esta acción no se puede deshacer.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Pagos
+              </h2>
+              <Button variant="outline" size="sm">
+                Añadir Pago
+              </Button>
+            </div>
+            <p className="text-muted-foreground">No hay pagos registrados para este expediente</p>
+          </Card>
+        </div>
       </div>
     </MainLayout>
   );
