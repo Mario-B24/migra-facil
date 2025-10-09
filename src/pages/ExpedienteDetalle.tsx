@@ -56,8 +56,7 @@ export default function ExpedienteDetalle() {
             telefono
           ),
           tipos_tramite:tipo_tramite_id (
-            nombre,
-            descripcion
+            nombre
           )
         `)
         .eq("id", id)
