@@ -47,12 +47,12 @@ const estadoLabels: Record<string, string> = {
 
 export default function Expedientes() {
   const navigate = useNavigate();
-  const [allExpedientes, setAllExpedientes] = useState<any[]>([]);
-  const [filteredExpedientes, setFilteredExpedientes] = useState<any[]>([]);
+  const [expedientes, setExpedientes] = useState<any[]>([]);
   const [tiposTramite, setTiposTramite] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterEstado, setFilterEstado] = useState<string>("all");
@@ -61,11 +61,7 @@ export default function Expedientes() {
   useEffect(() => {
     fetchTiposTramite();
     fetchExpedientes();
-  }, []);
-
-  useEffect(() => {
-    filterExpedientes();
-  }, [allExpedientes, searchTerm, filterEstado, filterTipoTramite]);
+  }, [currentPage, searchTerm, filterEstado, filterTipoTramite]);
 
   const fetchTiposTramite = async () => {
     try {
@@ -82,10 +78,8 @@ export default function Expedientes() {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("expedientes")
-        .select(
-          `
+      let query = supabase.from("expedientes").select(
+        `
             *,
             clients:cliente_id (
               nombre,
@@ -95,12 +89,33 @@ export default function Expedientes() {
               nombre
             )
           `,
-        )
-        .order("fecha_inicio", { ascending: false });
+        { count: "exact" },
+      );
+
+      if (searchTerm) {
+        query = query.or(
+          `numero_expediente.ilike.%${searchTerm}%,clients.nombre.ilike.%${searchTerm}%,clients.apellidos.ilike.%$
+  {searchTerm}%`,
+        );
+      }
+
+      if (filterEstado !== "all") {
+        query = query.eq("estado", filterEstado);
+      }
+
+      if (filterTipoTramite !== "all") {
+        query = query.eq("tipo_tramite_id", filterTipoTramite);
+      }
+
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      const { data, error, count } = await query.order("fecha_inicio", { ascending: false }).range(from, to);
 
       if (error) throw error;
 
-      setAllExpedientes(data || []);
+      setExpedientes(data || []);
+      setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar los expedientes");
@@ -109,41 +124,11 @@ export default function Expedientes() {
     }
   };
 
-  const filterExpedientes = () => {
-    let filtered = [...allExpedientes];
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (exp) =>
-          exp.numero_expediente?.toLowerCase().includes(search) ||
-          exp.clients?.nombre?.toLowerCase().includes(search) ||
-          exp.clients?.apellidos?.toLowerCase().includes(search),
-      );
-    }
-
-    if (filterEstado !== "all") {
-      filtered = filtered.filter((exp) => exp.estado === filterEstado);
-    }
-
-    if (filterTipoTramite !== "all") {
-      filtered = filtered.filter((exp) => exp.tipo_tramite_id === filterTipoTramite);
-    }
-
-    setFilteredExpedientes(filtered);
-    setCurrentPage(1);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
 
-  const totalPages = Math.ceil(filteredExpedientes.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const currentExpedientes = filteredExpedientes.slice(startIndex, endIndex);
-
-  if (loading && allExpedientes.length === 0) {
+  if (loading && expedientes.length === 0) {
     return (
       <MainLayout>
         <div className="p-8">
@@ -172,7 +157,10 @@ export default function Expedientes() {
                 <Input
                   placeholder="Buscar por número o cliente..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="pl-10"
                 />
               </div>
@@ -184,7 +172,13 @@ export default function Expedientes() {
 
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
-                <Select value={filterEstado} onValueChange={(value) => setFilterEstado(value)}>
+                <Select
+                  value={filterEstado}
+                  onValueChange={(value) => {
+                    setFilterEstado(value);
+                    setCurrentPage(1);
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Filtrar por estado" />
                   </SelectTrigger>
@@ -201,7 +195,13 @@ export default function Expedientes() {
                 </Select>
               </div>
               <div className="flex-1">
-                <Select value={filterTipoTramite} onValueChange={(value) => setFilterTipoTramite(value)}>
+                <Select
+                  value={filterTipoTramite}
+                  onValueChange={(value) => {
+                    setFilterTipoTramite(value);
+                    setCurrentPage(1);
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Filtrar por tipo de trámite" />
                   </SelectTrigger>
@@ -230,17 +230,17 @@ export default function Expedientes() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentExpedientes.length === 0 ? (
+              {expedientes.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No se encontraron expedientes
                   </TableCell>
                 </TableRow>
               ) : (
-                currentExpedientes.map((expediente) => (
+                expedientes.map((expediente) => (
                   <TableRow
                     key={expediente.id}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="cursor-pointer"
                     onClick={() => navigate(`/expedientes/${expediente.id}`)}
                   >
                     <TableCell className="font-medium">{expediente.numero_expediente}</TableCell>
@@ -277,29 +277,17 @@ export default function Expedientes() {
                       className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
                     />
                   </PaginationItem>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    return (
-                      <PaginationItem key={pageNum}>
-                        <PaginationLink
-                          onClick={() => handlePageChange(pageNum)}
-                          isActive={currentPage === pageNum}
-                          className="cursor-pointer"
-                        >
-                          {pageNum}
-                        </PaginationLink>
-                      </PaginationItem>
-                    );
-                  })}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => handlePageChange(page)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
                   <PaginationItem>
                     <PaginationNext
                       onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
